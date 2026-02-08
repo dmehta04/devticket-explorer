@@ -1,0 +1,42 @@
+# Rust
+devticket_api/target/
+devticket_api/*.db
+devticket_api/*.db-shm
+devticket_api/*.db-wal
+
+# Flutter
+devticket_app/.dart_tool/
+devticket_app/.packages
+devticket_app/build/
+devticket_app/.flutter-plugins
+devticket_app/.flutter-plugins-dependencies
+devticket_app/ios/Pods/
+devticket_app/ios/.symlinks/
+devticket_app/ios/Flutter/Flutter.framework
+devticket_app/ios/Flutter/Flutter.podspec
+devticket_app/ios/Flutter/Generated.xcconfig
+devticket_app/ios/Flutter/flutter_export_environment.sh
+devticket_app/ios/Flutter/App.framework
+devticket_app/ios/Runner.xcworkspace/xcshareddata/
+devticket_app/macos/Pods/
+devticket_app/macos/Flutter/GeneratedPluginRegistrant.swift
+devticket_app/macos/Flutter/ephemeral/
+devticket_app/linux/flutter/ephemeral/
+devticket_app/windows/flutter/ephemeral/
+devticket_app/android/.gradle/
+devticket_app/android/app/build/
+devticket_app/android/build/
+devticket_app/android/local.properties
+devticket_app/.fvm/
+devticket_app/pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
