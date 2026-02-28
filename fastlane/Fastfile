@@ -1,0 +1,150 @@
+# ============================================================================
+# Flutter Publish Kit — Fastlane Configuration
+# ============================================================================
+# Lanes for building and deploying Flutter apps to both stores.
+# Reads configuration from publish-kit.yaml in the project root.
+# ============================================================================
+
+default_platform(:ios)
+
+# ── Load Config ──────────────────────────────────────────────────────────────
+
+require 'yaml'
+
+CONFIG_PATH = File.join(Dir.pwd, 'publish-kit.yaml')
+unless File.exist?(CONFIG_PATH)
+  UI.user_error!("publish-kit.yaml not found in #{Dir.pwd}. Run: publish-kit.sh init")
+end
+
+CONFIG = YAML.load_file(CONFIG_PATH)
+
+APP_NAME     = CONFIG.dig('app', 'name') || 'UnnamedApp'
+VERSION      = CONFIG.dig('app', 'version') || '1.0.0'
+BUILD_NUMBER = CONFIG.dig('app', 'build_number') || 1
+
+# ── Android ──────────────────────────────────────────────────────────────────
+
+platform :android do
+  desc "Build Android App Bundle (AAB) for release"
+  lane :build do
+    UI.header("Building #{APP_NAME} for Android")
+
+    sh("cd #{Dir.pwd} && flutter build appbundle " \
+       "--release " \
+       "--build-name=#{VERSION} " \
+       "--build-number=#{BUILD_NUMBER}")
+
+    aab_path = File.join(Dir.pwd, 'build', 'app', 'outputs', 'bundle', 'release', 'app-release.aab')
+    UI.success("AAB built: #{aab_path}")
+    aab_path
+  end
+
+  desc "Build Android APK for testing"
+  lane :build_apk do
+    UI.header("Building #{APP_NAME} APK")
+
+    sh("cd #{Dir.pwd} && flutter build apk " \
+       "--release " \
+       "--build-name=#{VERSION} " \
+       "--build-number=#{BUILD_NUMBER}")
+
+    apk_path = File.join(Dir.pwd, 'build', 'app', 'outputs', 'flutter-apk', 'app-release.apk')
+    UI.success("APK built: #{apk_path}")
+    apk_path
+  end
+
+  desc "Deploy to Google Play Store"
+  lane :deploy do
+    aab_path = build
+
+    service_account = CONFIG.dig('android', 'play_store', 'service_account_json')
+    track = CONFIG.dig('android', 'play_store', 'track') || 'internal'
+    package_name = CONFIG.dig('android', 'application_id')
+
+    if service_account.nil? || service_account.include?('MOCK_')
+      UI.user_error!("Play Store service account not configured. Update publish-kit.yaml")
+    end
+
+    supply(
+      aab: aab_path,
+      track: track,
+      json_key: service_account,
+      package_name: package_name,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+
+    UI.success("#{APP_NAME} v#{VERSION} deployed to Play Store (#{track} track)")
+  end
+end
+
+# ── iOS ──────────────────────────────────────────────────────────────────────
+
+platform :ios do
+  desc "Build iOS IPA for release"
+  lane :build do
+    UI.header("Building #{APP_NAME} for iOS")
+
+    export_plist = File.join(Dir.pwd, 'ios', 'exportOptions.plist')
+    unless File.exist?(export_plist)
+      UI.user_error!("ios/exportOptions.plist not found. Run: publish-kit.sh init")
+    end
+
+    sh("cd #{Dir.pwd} && flutter build ipa " \
+       "--release " \
+       "--build-name=#{VERSION} " \
+       "--build-number=#{BUILD_NUMBER} " \
+       "--export-options-plist=ios/exportOptions.plist")
+
+    ipa_path = Dir[File.join(Dir.pwd, 'build', 'ios', 'ipa', '*.ipa')].first
+    UI.success("IPA built: #{ipa_path}")
+    ipa_path
+  end
+
+  desc "Deploy to App Store Connect (TestFlight)"
+  lane :deploy do
+    ipa_path = build
+
+    key_id    = CONFIG.dig('ios', 'appstore_connect', 'key_id')
+    issuer_id = CONFIG.dig('ios', 'appstore_connect', 'issuer_id')
+    key_file  = CONFIG.dig('ios', 'appstore_connect', 'key_file')
+
+    if [key_id, issuer_id, key_file].any? { |v| v.nil? || v.include?('MOCK_') }
+      UI.user_error!("App Store Connect API key not configured. Update publish-kit.yaml")
+    end
+
+    api_key = app_store_connect_api_key(
+      key_id: key_id,
+      issuer_id: issuer_id,
+      key_filepath: key_file
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: ipa_path,
+      skip_waiting_for_build_processing: true
+    )
+
+    UI.success("#{APP_NAME} v#{VERSION} uploaded to TestFlight")
+  end
+end
+
+# ── Cross-platform ───────────────────────────────────────────────────────────
+
+desc "Build both Android and iOS"
+lane :build_all do
+  UI.header("Building #{APP_NAME} for both platforms")
+  Fastlane::LaneManager.cruise_lane('android', 'build')
+  Fastlane::LaneManager.cruise_lane('ios', 'build')
+  UI.success("Both platforms built successfully!")
+end
+
+desc "Deploy to both stores"
+lane :deploy_all do
+  UI.header("Deploying #{APP_NAME} to both stores")
+  Fastlane::LaneManager.cruise_lane('android', 'deploy')
+  Fastlane::LaneManager.cruise_lane('ios', 'deploy')
+  UI.success("Deployed to both Play Store and App Store!")
+end

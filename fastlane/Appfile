@@ -1,0 +1,15 @@
+# ============================================================================
+# Flutter Publish Kit — Fastlane Appfile
+# ============================================================================
+# PUBLISH-KIT managed. Replace MOCK_ values with real ones.
+# ============================================================================
+
+# ── Android ──
+json_key_file("MOCK_SERVICE_ACCOUNT_JSON_PATH")
+package_name("com.devticket.devticket_app")
+
+# ── iOS ──
+app_identifier("com.devticket.devticketApp")
+apple_id("MOCK_APPLE_ID_EMAIL")
+team_id("MOCK_TEAM_ID")
+itc_team_id("MOCK_ITC_TEAM_ID")
